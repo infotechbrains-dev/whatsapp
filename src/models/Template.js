@@ -12,6 +12,16 @@ const templateSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
+  companyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company',
+    required: true,
+  },
+  wabaId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'WABA',
+    required: true,
+  },
   name: {
     type: String,
     required: true,
@@ -66,6 +76,9 @@ const templateSchema = new mongoose.Schema({
 
 // Index for efficient queries
 templateSchema.index({ userId: 1, name: 1 }, { unique: true });
+templateSchema.index({ companyId: 1, wabaId: 1, name: 1 }, { unique: true });
+templateSchema.index({ companyId: 1 });
+templateSchema.index({ wabaId: 1 });
 templateSchema.index({ status: 1 });
 
 export default mongoose.models.Template || mongoose.model('Template', templateSchema);

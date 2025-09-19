@@ -43,7 +43,7 @@ export async function POST(request, { params }) {
     const campaign = await Campaign.findOne({ 
       _id: resolvedParams.id, 
       userId: decoded.userId 
-    }).populate('templateId');
+    }).populate('templateId').populate('headerMediaId').populate('messageMediaId');
     
     if (!campaign) {
       return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
@@ -102,8 +102,8 @@ async function processCampaignMessages(campaign, contacts, templateAnalysis, use
     for (const contact of batch) {
       try {
         // Check if user still has message quota
-        await user.reload();
-        if (user.subscription.messagesUsed >= user.subscription.messageLimit) {
+        const updatedUser = await User.findById(user._id);
+        if (updatedUser.subscription.messagesUsed >= updatedUser.subscription.messageLimit) {
           console.log(`Message limit reached for user ${user._id}, stopping campaign`);
           await Campaign.findByIdAndUpdate(campaign._id, { 
             status: 'paused',
@@ -129,13 +129,18 @@ async function processCampaignMessages(campaign, contacts, templateAnalysis, use
           phoneNumber: contact.phoneNumber,
           normalizedPhoneNumber: contact.normalizedPhoneNumber,
           direction: 'outbound',
-          type: 'template',
+          type: campaign.messageType,
           status: 'SENDING',
-          content: {
+          content: campaign.messageType === 'template' ? {
             templateName: campaign.templateId.name,
             templateLanguage: campaign.templateId.language,
             headerValue: campaign.headerValue,
+            headerMediaUrl: campaign.headerMediaId?.s3Url || null,
             bodyParameters: campaign.bodyParameters,
+          } : {
+            text: campaign.textMessage,
+            mediaUrl: campaign.messageMediaId?.s3Url || null,
+            mediaType: campaign.messageType,
           },
           scheduledDate: campaign.scheduledDate,
         });
@@ -143,15 +148,32 @@ async function processCampaignMessages(campaign, contacts, templateAnalysis, use
         await message.save();
 
         try {
-          // Send message via WhatsApp API
-          const response = await whatsappAPI.sendTemplateMessage({
-            phoneNumber: contact.normalizedPhoneNumber,
-            templateName: campaign.templateId.name,
-            languageCode: campaign.templateId.language,
-            headerValue: campaign.headerValue,
-            bodyParameters: campaign.bodyParameters,
-            templateAnalysis: templateAnalysis
-          });
+          let response;
+          
+          // Send message via WhatsApp API based on message type
+          if (campaign.messageType === 'template') {
+            response = await whatsappAPI.sendTemplateMessage({
+              phoneNumber: contact.normalizedPhoneNumber,
+              templateName: campaign.templateId.name,
+              languageCode: campaign.templateId.language,
+              headerValue: campaign.headerValue,
+              headerMediaUrl: campaign.headerMediaId?.s3Url || null,
+              bodyParameters: campaign.bodyParameters,
+              templateAnalysis: templateAnalysis
+            });
+          } else if (campaign.messageType === 'text') {
+            response = await whatsappAPI.sendTextMessage(
+              contact.normalizedPhoneNumber,
+              campaign.textMessage
+            );
+          } else if (['image', 'video', 'document'].includes(campaign.messageType)) {
+            response = await whatsappAPI.sendMediaMessage(
+              contact.normalizedPhoneNumber,
+              campaign.messageMediaId.s3Url,
+              campaign.messageType,
+              campaign.textMessage || null
+            );
+          }
 
           // Update message with WhatsApp message ID
           if (response.messages && response.messages[0] && response.messages[0].id) {

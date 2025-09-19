@@ -111,28 +111,34 @@ WEBHOOK_VERIFY_TOKEN=your_webhook_verify_token
 # Next.js Configuration
 NEXTAUTH_SECRET=your_nextauth_secret
 NEXTAUTH_URL=http://localhost:3000
+
+# AWS S3 Configuration
+AWS_ACCESS_KEY_ID=your_aws_access_key_id
+AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key
+AWS_S3_REGION=us-east-1
+AWS_S3_BUCKET_NAME=your_whatsapp_media_bucket
 ```
 
 ## Common Development Commands
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Run development server
-npm run dev
+pnpm run dev
 
 # Build for production
-npm run build
+pnpm run build
 
 # Start production server
-npm start
+pnpm start
 
 # Run linting
-npm run lint
+pnpm run lint
 
 # Format code (if prettier is configured)
-npm run format
+pnpm run format
 ```
 
 ## Database Setup
@@ -183,6 +189,15 @@ npm run format
 ### Webhook
 - `GET /api/webhook` - Webhook verification
 - `POST /api/webhook` - Handle incoming webhooks
+
+### Media
+- `GET /api/media` - List user's media files with pagination and filtering
+- `POST /api/media` - Upload new media file
+- `GET /api/media/[id]` - Get specific media file
+- `PUT /api/media/[id]` - Update media file metadata
+- `DELETE /api/media/[id]` - Delete media file
+- `POST /api/media/presigned-url` - Generate presigned URL for direct S3 upload
+- `POST /api/media/upload-complete` - Mark upload as complete
 
 ## Key Components
 

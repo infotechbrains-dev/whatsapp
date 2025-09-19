@@ -6,6 +6,16 @@ const messageSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
+  companyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company',
+    required: true,
+  },
+  wabaId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'WABA',
+    required: true,
+  },
   contactId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Contact',
@@ -85,6 +95,8 @@ messageSchema.pre('save', function(next) {
 
 // Indexes for efficient queries
 messageSchema.index({ userId: 1, createdAt: -1 });
+messageSchema.index({ companyId: 1, createdAt: -1 });
+messageSchema.index({ wabaId: 1, createdAt: -1 });
 messageSchema.index({ contactId: 1, createdAt: -1 });
 messageSchema.index({ whatsappMessageId: 1 });
 messageSchema.index({ normalizedPhoneNumber: 1, direction: 1 });

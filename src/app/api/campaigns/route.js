@@ -47,19 +47,35 @@ export async function POST(request) {
     const decoded = await verifyToken(request);
     const campaignData = await request.json();
     
-    // Validate required fields
-    if (!campaignData.name || !campaignData.templateId) {
+    // Validate required fields based on message type
+    if (!campaignData.name || !campaignData.messageType) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Verify template exists and belongs to user
-    const template = await Template.findOne({ 
-      _id: campaignData.templateId, 
-      userId: decoded.userId 
-    });
+    // Additional validation based on message type
+    if (campaignData.messageType === 'template' && !campaignData.templateId) {
+      return NextResponse.json({ error: 'Template ID required for template messages' }, { status: 400 });
+    }
     
-    if (!template) {
-      return NextResponse.json({ error: 'Template not found' }, { status: 404 });
+    if (campaignData.messageType === 'text' && !campaignData.textMessage) {
+      return NextResponse.json({ error: 'Text message required for text messages' }, { status: 400 });
+    }
+    
+    if (['image', 'video', 'document'].includes(campaignData.messageType) && !campaignData.messageMediaId) {
+      return NextResponse.json({ error: `Media file required for ${campaignData.messageType} messages` }, { status: 400 });
+    }
+
+    // Verify template exists and belongs to user (only for template messages)
+    let template = null;
+    if (campaignData.messageType === 'template') {
+      template = await Template.findOne({ 
+        _id: campaignData.templateId, 
+        userId: decoded.userId 
+      });
+      
+      if (!template) {
+        return NextResponse.json({ error: 'Template not found' }, { status: 404 });
+      }
     }
 
     // Get contacts based on filters
@@ -91,13 +107,17 @@ export async function POST(request) {
       userId: decoded.userId,
       name: campaignData.name,
       description: campaignData.description,
-      templateId: template._id,
+      messageType: campaignData.messageType,
+      templateId: template?._id,
       status: 'draft',
       scheduledDate: campaignData.scheduledDate,
       contactIds: contacts.map(c => c._id),
       contactFilters: campaignData.contactFilters || {},
       headerValue: campaignData.headerValue,
+      headerMediaId: campaignData.headerMediaId,
       bodyParameters: campaignData.bodyParameters || [],
+      textMessage: campaignData.textMessage,
+      messageMediaId: campaignData.messageMediaId,
       stats: {
         totalContacts: contacts.length,
       },

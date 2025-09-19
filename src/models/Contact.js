@@ -6,6 +6,11 @@ const contactSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
+  companyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company',
+    required: true,
+  },
   phoneNumber: {
     type: String,
     required: true,
@@ -52,6 +57,8 @@ contactSchema.pre('save', function(next) {
 
 // Index for efficient queries
 contactSchema.index({ userId: 1, normalizedPhoneNumber: 1 }, { unique: true });
+contactSchema.index({ companyId: 1, normalizedPhoneNumber: 1 }, { unique: true });
+contactSchema.index({ companyId: 1, isUnsubscribed: 1 });
 contactSchema.index({ userId: 1, isUnsubscribed: 1 });
 contactSchema.index({ tags: 1 });
 

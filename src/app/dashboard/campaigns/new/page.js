@@ -3,15 +3,21 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, PhotoIcon, FolderOpenIcon } from '@heroicons/react/24/outline';
+import SimpleMediaModal from '@/components/media/SimpleMediaModal';
 
 export default function NewCampaignPage() {
   const [campaignData, setCampaignData] = useState({
     name: '',
     description: '',
+    messageType: 'template', // 'template', 'text', 'image', 'video', 'document'
     templateId: '',
     headerValue: '',
+    headerMedia: null, // For image/video/document headers
     bodyParameters: [],
+    // For direct message types
+    textMessage: '',
+    messageMedia: null,
     scheduledDate: '',
     contactFilters: {
       tags: [],
@@ -23,6 +29,8 @@ export default function NewCampaignPage() {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showMediaModal, setShowMediaModal] = useState(false);
+  const [mediaModalMode, setMediaModalMode] = useState(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -70,6 +78,7 @@ export default function NewCampaignPage() {
       ...prev,
       templateId,
       headerValue: '',
+      headerMedia: null,
       bodyParameters: template ? new Array(template.bodyParameters?.length || 0).fill('') : [],
     }));
   };
@@ -91,9 +100,13 @@ export default function NewCampaignPage() {
         body: JSON.stringify({
           name: campaignData.name,
           description: campaignData.description,
-          templateId: campaignData.templateId,
+          messageType: campaignData.messageType,
+          templateId: campaignData.templateId || null,
           headerValue: campaignData.headerValue,
+          headerMediaId: campaignData.headerMedia?._id || null,
           bodyParameters: campaignData.bodyParameters,
+          textMessage: campaignData.textMessage,
+          messageMediaId: campaignData.messageMedia?._id || null,
           scheduledDate: campaignData.scheduledDate || null,
           contactFilters: campaignData.contactFilters,
         }),
@@ -110,6 +123,41 @@ export default function NewCampaignPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const openMediaUploader = () => {
+    setMediaModalMode('upload');
+    setShowMediaModal(true);
+  };
+
+  const openMediaLibrary = () => {
+    setMediaModalMode('library');
+    setShowMediaModal(true);
+  };
+
+  const handleMediaSelect = (mediaFile) => {
+    if (campaignData.messageType === 'template') {
+      // For template messages, set header media
+      setCampaignData(prev => ({
+        ...prev,
+        headerMedia: mediaFile
+      }));
+    } else {
+      // For direct messages, set message media
+      setCampaignData(prev => ({
+        ...prev,
+        messageMedia: mediaFile
+      }));
+    }
+    setShowMediaModal(false);
+    setMediaModalMode(null);
+  };
+
+  const removeSelectedMedia = () => {
+    setCampaignData(prev => ({
+      ...prev,
+      headerMedia: null
+    }));
   };
 
   return (
@@ -178,7 +226,44 @@ export default function NewCampaignPage() {
             </div>
           </div>
 
-          {/* Template Selection */}
+          {/* Message Type Selection */}
+          <div>
+            <label htmlFor="messageType" className="block text-sm font-medium text-gray-700">
+              Message Type *
+            </label>
+            <select
+              id="messageType"
+              required
+              value={campaignData.messageType}
+              onChange={(e) => {
+                setCampaignData(prev => ({ 
+                  ...prev, 
+                  messageType: e.target.value,
+                  templateId: '', // Reset template selection
+                  textMessage: '',
+                  messageMedia: null
+                }));
+                setSelectedTemplate(null);
+              }}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+            >
+              <option value="template">WhatsApp Template</option>
+              <option value="text">Text Message</option>
+              <option value="image">Image Message</option>
+              <option value="video">Video Message</option>
+              <option value="document">Document Message</option>
+            </select>
+            <p className="mt-1 text-sm text-gray-500">
+              {campaignData.messageType === 'template' && 'Use pre-approved WhatsApp templates'}
+              {campaignData.messageType === 'text' && 'Send plain text messages'}
+              {campaignData.messageType === 'image' && 'Send images with optional caption'}
+              {campaignData.messageType === 'video' && 'Send videos with optional caption'}
+              {campaignData.messageType === 'document' && 'Send documents with optional caption'}
+            </p>
+          </div>
+
+          {/* Template Selection - Only show for template message type */}
+          {campaignData.messageType === 'template' && (
           <div>
             <label htmlFor="template" className="block text-sm font-medium text-gray-700">
               Select Template *
@@ -203,6 +288,7 @@ export default function NewCampaignPage() {
               </p>
             )}
           </div>
+          )}
 
           {/* Template Parameters */}
           {selectedTemplate && (
@@ -212,16 +298,104 @@ export default function NewCampaignPage() {
               {/* Header Parameter */}
               {selectedTemplate.headerRequiresParam && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Header Value ({selectedTemplate.headerType})
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Header {selectedTemplate.headerType.toLowerCase()} *
                   </label>
-                  <input
-                    type="text"
-                    value={campaignData.headerValue}
-                    onChange={(e) => setCampaignData(prev => ({ ...prev, headerValue: e.target.value }))}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
-                    placeholder={selectedTemplate.headerType === 'TEXT' ? 'Enter header text' : 'Enter media URL'}
-                  />
+                  
+                  {selectedTemplate.headerType === 'TEXT' ? (
+                    <input
+                      type="text"
+                      value={campaignData.headerValue}
+                      onChange={(e) => setCampaignData(prev => ({ ...prev, headerValue: e.target.value }))}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                      placeholder="Enter header text"
+                    />
+                  ) : (
+                    // Media header (IMAGE, VIDEO, DOCUMENT)
+                    <div>
+                      {campaignData.headerMedia ? (
+                        <div className="border rounded-lg p-4 bg-gray-50">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <div className="flex-shrink-0">
+                                {selectedTemplate.headerType === 'IMAGE' && (
+                                  <img 
+                                    src={campaignData.headerMedia.s3Url} 
+                                    alt={campaignData.headerMedia.originalName}
+                                    className="w-16 h-16 object-cover rounded-lg"
+                                  />
+                                )}
+                                {selectedTemplate.headerType === 'VIDEO' && (
+                                  <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                                    <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                                    </svg>
+                                  </div>
+                                )}
+                                {selectedTemplate.headerType === 'DOCUMENT' && (
+                                  <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                  </div>
+                                )}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {campaignData.headerMedia.originalName}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {(campaignData.headerMedia.fileSize / 1024 / 1024).toFixed(2)} MB
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={removeSelectedMedia}
+                              className="text-red-600 hover:text-red-800 text-sm"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="flex space-x-3">
+                            <button
+                              type="button"
+                              onClick={openMediaUploader}
+                              className="flex-1 flex items-center justify-center px-4 py-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors"
+                            >
+                              <div className="text-center">
+                                <PhotoIcon className="mx-auto h-8 w-8 text-gray-400" />
+                                <p className="mt-2 text-sm font-medium text-gray-900">Upload New</p>
+                                <p className="text-xs text-gray-500">
+                                  {selectedTemplate.headerType.toLowerCase()} file
+                                </p>
+                              </div>
+                            </button>
+                            
+                            <button
+                              type="button"
+                              onClick={openMediaLibrary}
+                              className="flex-1 flex items-center justify-center px-4 py-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors"
+                            >
+                              <div className="text-center">
+                                <FolderOpenIcon className="mx-auto h-8 w-8 text-gray-400" />
+                                <p className="mt-2 text-sm font-medium text-gray-900">Choose from Library</p>
+                                <p className="text-xs text-gray-500">
+                                  Previously uploaded files
+                                </p>
+                              </div>
+                            </button>
+                          </div>
+                          <p className="text-xs text-gray-500 text-center">
+                            Select {selectedTemplate.headerType.toLowerCase()} file for this campaign
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -244,6 +418,145 @@ export default function NewCampaignPage() {
                   />
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Direct Message Input - For non-template message types */}
+          {campaignData.messageType !== 'template' && (
+            <div className="space-y-4">
+              <h4 className="text-md font-medium text-gray-900">Message Content</h4>
+              
+              {/* Text Message */}
+              {campaignData.messageType === 'text' && (
+                <div>
+                  <label htmlFor="textMessage" className="block text-sm font-medium text-gray-700">
+                    Message Text *
+                  </label>
+                  <textarea
+                    id="textMessage"
+                    required
+                    rows={4}
+                    value={campaignData.textMessage}
+                    onChange={(e) => setCampaignData(prev => ({ ...prev, textMessage: e.target.value }))}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                    placeholder="Enter your message text..."
+                  />
+                </div>
+              )}
+
+              {/* Media Message (Image/Video/Document) */}
+              {['image', 'video', 'document'].includes(campaignData.messageType) && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                      Select {campaignData.messageType} *
+                    </label>
+                    
+                    {campaignData.messageMedia ? (
+                      <div className="border rounded-lg p-4 bg-gray-50">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="flex-shrink-0">
+                              {campaignData.messageType === 'image' && (
+                                <img 
+                                  src={campaignData.messageMedia.s3Url} 
+                                  alt={campaignData.messageMedia.originalName}
+                                  className="w-16 h-16 object-cover rounded-lg"
+                                />
+                              )}
+                              {campaignData.messageType === 'video' && (
+                                <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                                  <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                                  </svg>
+                                </div>
+                              )}
+                              {campaignData.messageType === 'document' && (
+                                <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                  </div>
+                                )}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">
+                                {campaignData.messageMedia.originalName}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {(campaignData.messageMedia.fileSize / 1024 / 1024).toFixed(2)} MB
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setCampaignData(prev => ({ ...prev, messageMedia: null }))}
+                            className="text-red-600 hover:text-red-800 text-sm"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex space-x-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMediaModalMode('upload');
+                              setShowMediaModal(true);
+                            }}
+                            className="flex-1 flex items-center justify-center px-4 py-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors"
+                          >
+                            <div className="text-center">
+                              <PhotoIcon className="mx-auto h-8 w-8 text-gray-400" />
+                              <p className="mt-2 text-sm font-medium text-gray-900">Upload New</p>
+                              <p className="text-xs text-gray-500">
+                                {campaignData.messageType} file
+                              </p>
+                            </div>
+                          </button>
+                          
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMediaModalMode('library');
+                              setShowMediaModal(true);
+                            }}
+                            className="flex-1 flex items-center justify-center px-4 py-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors"
+                          >
+                            <div className="text-center">
+                              <FolderOpenIcon className="mx-auto h-8 w-8 text-gray-400" />
+                              <p className="mt-2 text-sm font-medium text-gray-900">Choose from Library</p>
+                              <p className="text-xs text-gray-500">
+                                Previously uploaded files
+                              </p>
+                            </div>
+                          </button>
+                        </div>
+                        <p className="text-xs text-gray-500 text-center">
+                          Select {campaignData.messageType} file for this campaign
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Caption for media messages */}
+                  <div>
+                    <label htmlFor="textMessage" className="block text-sm font-medium text-gray-700">
+                      Caption (Optional)
+                    </label>
+                    <textarea
+                      id="textMessage"
+                      rows={3}
+                      value={campaignData.textMessage}
+                      onChange={(e) => setCampaignData(prev => ({ ...prev, textMessage: e.target.value }))}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                      placeholder="Enter optional caption for the media..."
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -317,6 +630,17 @@ export default function NewCampaignPage() {
           </div>
         </form>
       </div>
+
+      {/* Media Selection Modal */}
+      <SimpleMediaModal
+        isOpen={showMediaModal}
+        onClose={() => {
+          setShowMediaModal(false);
+          setMediaModalMode(null);
+        }}
+        mode={mediaModalMode}
+        onFileSelect={handleMediaSelect}
+      />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -11,6 +12,8 @@ import {
   CogIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
+import CompanySwitcher from './CompanySwitcher';
+import WABASwitcher from './WABASwitcher';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
@@ -24,6 +27,17 @@ const navigation = [
 
 export default function Sidebar({ user, sidebarOpen, setSidebarOpen, onLogout }) {
   const pathname = usePathname();
+  const [currentCompany, setCurrentCompany] = useState(null);
+
+  // Handle company/WABA switching
+  const handleCompanyChange = (company) => {
+    setCurrentCompany(company);
+  };
+
+  const handleWABAChange = (waba) => {
+    // WABA changed callback
+    console.log('WABA changed:', waba?.name);
+  };
 
   const sidebarClasses = `
     fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out
@@ -61,6 +75,20 @@ export default function Sidebar({ user, sidebarOpen, setSidebarOpen, onLogout })
             >
               <XMarkIcon className="h-6 w-6" />
             </button>
+          </div>
+
+          {/* Company and WABA Switchers */}
+          <div className="p-4 space-y-3 border-b bg-gray-50">
+            <CompanySwitcher 
+              user={user} 
+              onCompanyChange={handleCompanyChange}
+            />
+            {currentCompany && (
+              <WABASwitcher 
+                currentCompanyId={currentCompany._id || user?.preferences?.currentCompanyId}
+                onWABAChange={handleWABAChange}
+              />
+            )}
           </div>
 
           {/* User info */}

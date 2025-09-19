@@ -5,6 +5,7 @@ import User from '@/models/User';
 import { createWhatsAppAPI } from '@/lib/whatsapp';
 import jwt from 'jsonwebtoken';
 
+// Helper function to verify JWT token
 async function verifyToken(request) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
@@ -19,7 +20,7 @@ async function verifyToken(request) {
   }
 }
 
-// GET /api/templates/[name] - Get specific template details
+// GET /api/templates/[name] - Get specific template
 export async function GET(request, { params }) {
   try {
     await dbConnect();
@@ -31,38 +32,16 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'WhatsApp configuration not found' }, { status: 400 });
     }
 
-    const resolvedParams = await params;
-    const templateName = resolvedParams.name;
+    const templateName = decodeURIComponent(params.name);
     
-    // Try to get template from database first
-    let template = await Template.findOne({ userId: user._id, name: templateName });
-    
-    // If not in database or needs refresh, fetch from WhatsApp API
+    // Find template in database
+    const template = await Template.findOne({ 
+      userId: user._id, 
+      name: templateName 
+    });
+
     if (!template) {
-      const whatsappAPI = createWhatsAppAPI(user.whatsappConfig);
-      const whatsappTemplate = await whatsappAPI.fetchTemplateDetails(templateName);
-      
-      if (!whatsappTemplate) {
-        return NextResponse.json({ error: 'Template not found' }, { status: 404 });
-      }
-      
-      // Analyze and save template
-      const analysis = whatsappAPI.analyzeTemplateParameters(whatsappTemplate);
-      
-      template = new Template({
-        userId: user._id,
-        name: whatsappTemplate.name,
-        status: whatsappTemplate.status,
-        language: whatsappTemplate.language || 'en_US',
-        components: whatsappTemplate.components,
-        headerType: analysis.headerType,
-        headerRequiresParam: analysis.headerRequiresParam,
-        bodyParameters: analysis.bodyParameters,
-        buttonParameters: analysis.buttonParameters,
-        description: analysis.description,
-      });
-      
-      await template.save();
+      return NextResponse.json({ error: 'Template not found' }, { status: 404 });
     }
     
     return NextResponse.json({ template });
@@ -72,7 +51,7 @@ export async function GET(request, { params }) {
   }
 }
 
-// DELETE /api/templates/[name] - Delete a template
+// DELETE /api/templates/[name] - Delete template
 export async function DELETE(request, { params }) {
   try {
     await dbConnect();
@@ -84,15 +63,28 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: 'WhatsApp configuration not found' }, { status: 400 });
     }
 
-    const resolvedParams = await params;
-    const templateName = resolvedParams.name;
+    const templateName = decodeURIComponent(params.name);
     
-    // Delete from WhatsApp API
+    // Create WhatsApp API instance
     const whatsappAPI = createWhatsAppAPI(user.whatsappConfig);
-    await whatsappAPI.deleteTemplate(templateName);
     
-    // Delete from database
-    await Template.deleteOne({ userId: user._id, name: templateName });
+    try {
+      // Delete template from WhatsApp API
+      await whatsappAPI.deleteTemplate(templateName);
+    } catch (whatsappError) {
+      console.log('WhatsApp API delete error (template may not exist on WhatsApp):', whatsappError.message);
+      // Continue with database deletion even if WhatsApp deletion fails
+    }
+    
+    // Delete template from database
+    const deletedTemplate = await Template.findOneAndDelete({ 
+      userId: user._id, 
+      name: templateName 
+    });
+
+    if (!deletedTemplate) {
+      return NextResponse.json({ error: 'Template not found' }, { status: 404 });
+    }
     
     return NextResponse.json({ message: 'Template deleted successfully' });
   } catch (error) {

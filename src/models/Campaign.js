@@ -6,15 +6,32 @@ const campaignSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
+  companyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company',
+    required: true,
+  },
+  wabaId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'WABA',
+    required: true,
+  },
   name: {
     type: String,
     required: true,
   },
   description: String,
+  messageType: {
+    type: String,
+    enum: ['template', 'text', 'image', 'video', 'document'],
+    default: 'template',
+  },
   templateId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Template',
-    required: true,
+    required: function() {
+      return this.messageType === 'template';
+    },
   },
   status: {
     type: String,
@@ -39,7 +56,17 @@ const campaignSchema = new mongoose.Schema({
   },
   // Template parameters
   headerValue: String,
+  headerMediaId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'MediaFile',
+  },
   bodyParameters: [String],
+  // Direct message parameters
+  textMessage: String,
+  messageMediaId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'MediaFile',
+  },
   // Statistics
   stats: {
     totalContacts: {
@@ -92,6 +119,8 @@ const campaignSchema = new mongoose.Schema({
 
 // Indexes
 campaignSchema.index({ userId: 1, createdAt: -1 });
+campaignSchema.index({ companyId: 1, createdAt: -1 });
+campaignSchema.index({ wabaId: 1, createdAt: -1 });
 campaignSchema.index({ status: 1 });
 campaignSchema.index({ scheduledDate: 1 });
 

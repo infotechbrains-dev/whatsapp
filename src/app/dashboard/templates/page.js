@@ -160,19 +160,25 @@ export default function TemplatesPage() {
                     </div>
                   </div>
                   
-                  <div className="mt-6 flex space-x-3">
+                  <div className="mt-6 flex space-x-2">
                     <Link
                       href={`/dashboard/templates/${encodeURIComponent(template.name)}`}
                       className="flex-1 bg-green-600 hover:bg-green-700 text-white text-center px-3 py-2 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                     >
-                      View Details
+                      View
+                    </Link>
+                    <Link
+                      href={`/dashboard/templates/${encodeURIComponent(template.name)}/edit`}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-center px-3 py-2 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    >
+                      Edit
                     </Link>
                     {template.status === 'APPROVED' && (
                       <Link
                         href={`/dashboard/campaigns/new?template=${encodeURIComponent(template.name)}`}
                         className="flex-1 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-center px-3 py-2 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                       >
-                        Use Template
+                        Use
                       </Link>
                     )}
                   </div>

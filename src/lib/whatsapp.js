@@ -278,6 +278,36 @@ class WhatsAppAPI {
   }
 
   /**
+   * Send media message (image, video, document)
+   */
+  async sendMediaMessage(phoneNumber, mediaUrl, mediaType, caption = null) {
+    try {
+      // Normalize phone number
+      const normalizedPhone = this.normalizePhoneNumber(phoneNumber);
+      
+      const payload = {
+        messaging_product: "whatsapp",
+        to: normalizedPhone,
+        type: mediaType,
+        [mediaType]: {
+          link: mediaUrl
+        }
+      };
+
+      // Add caption if provided
+      if (caption && caption.trim()) {
+        payload[mediaType].caption = caption.trim();
+      }
+
+      const response = await this.axios.post(`/${this.phoneNumberId}/messages`, payload);
+      return response.data;
+    } catch (error) {
+      console.error('Error sending media message:', error.response?.data || error.message);
+      throw new Error(`Failed to send media message: ${error.response?.data?.error?.message || error.message}`);
+    }
+  }
+
+  /**
    * Normalize phone number for WhatsApp API
    */
   normalizePhoneNumber(phoneNumber) {
